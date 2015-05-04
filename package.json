@@ -10,7 +10,7 @@
 	"description": "html loader module to convert HTML to JSX for webpack",
 	"dependencies": {
 		"loader-utils": "^0.2.6",
-		"htmltojsx": "https://github.com/reactjs/react-magic.git",
+		"htmltojsx": "",
 		"jsdom": "~4.4.0"
 	},
 	"devDependencies": {
