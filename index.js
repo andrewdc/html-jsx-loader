@@ -153,5 +153,5 @@ function createReactComponent(content) {
 
 module.exports = function(content) {
   var output = createReactComponent(content) + ';';
-  return 'module.exports = ' + output;
+  return 'var React = require("react");\nmodule.exports = ' + output;
 };
