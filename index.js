@@ -15,13 +15,143 @@
 */
 
 var HTMLtoJSX = require('htmltojsx');
+var jsdom = require('jsdom').jsdom;
+var defaultView = jsdom().defaultView;
 
-module.exports = function(content) {
-  this.cacheable && this.cacheable();
-  this.value = content;
+String.prototype.capitalize = function() {
+  return this.charAt(0).toUpperCase() + this.slice(1).toLowerCase();
+};
+
+function createElement(tag) {
+  return defaultView.document.createElement(tag);
+}
+
+var ATTRIBUTE_MAPPING = {
+	'classname': 'className',
+	'activestyle': 'activeStyle',
+	'htmlfor': 'htmlFor'
+};
+
+var TagToReactRouter = function() {
+
+  return {
+    reset: function() {
+      this.output = '';
+
+      this.routerLink = false;
+    },
+
+    parse: function(element) {
+
+      this.reset();
+
+      var wrapper = createElement('div');
+      wrapper.innerHTML = element;
+
+      var jsxDiv = wrapper.children[0];
+
+      this.visit(jsxDiv);
+
+      return this.output;
+    },
+
+    traverse: function(element) {
+      for (var i = 0, count = element.childNodes.length; i < count; i++) {
+        this.visit(element.childNodes[i]);
+      }
+    },
+
+    visit: function(element) {
+      this.begin(element);
+      this.traverse(element);
+      this.end(element);
+    },
+
+    handleText: function(element) {
+      var text = element.textContent;
+      if (this.routerLink) {
+        text = text.replace("[", '{').replace(/]/g, '}');
+      }
+
+      var tempEl = createElement('div');
+      tempEl.textContent = text;
+      
+      this.output += tempEl.innerHTML;
+    },
+
+    beginNode: function(node) {
+
+      var tagName = this.routerLink ? 'Link' : node.tagName.toLowerCase();
+      var attributes = [];
+      for (var i = 0, count = node.attributes.length; i < count; i++) {
+        var value = node.attributes[i].value;
+        if (value.indexOf('[') !== 0) {
+          value = '"' + value + '"';
+        } else {
+        	value = '{' + value.replace(/\[/g, '{').replace(/\]/g,'}') + '}';
+        }
+
+        var name = node.attributes[i].name;
+        if (this.routerLink) {
+          name = name.replace(/data-/g, '');
+        }
+
+        for (var key in ATTRIBUTE_MAPPING) {
+        	if (ATTRIBUTE_MAPPING.hasOwnProperty(key)) {
+        		name = name.replace(key, ATTRIBUTE_MAPPING[key]);
+        	}
+        }
+        attributes.push(name + '=' + value);
+      }
+
+      this.output += '<' + tagName;
+      if (attributes.length > 0) {
+        this.output += ' ' + attributes.join(' ');
+      }
+      if (node.firstChild) {
+        this.output += '>';
+      }
+    },
+
+    begin: function(node) {
+      switch (node.nodeType) {
+        case 1:
+          if (node.tagName === 'A' && node.getAttribute('data-to')) {
+            this.routerLink = true;
+          }
+          this.beginNode(node);
+          break;
+
+        case 3:
+          this.handleText(node);
+          break;
+      }
+    },
+
+    end: function(node) {
+      if (node.nodeType === 1) {
+        var tagName = this.routerLink ? 'Link' : node.tagName.toLowerCase();
+        this.routerLink = false;
+        if (node.firstChild) {
+          this.output += '</' + tagName + '>';
+        } else {
+          this.output += ' />';
+        }
+      }
+    }
+  };
+};
+
+function createReactComponent(content) {
   var converter = new HTMLtoJSX({
     createClass: false
   });
+  
+  var output = new TagToReactRouter().parse(converter.convert(content));
+  return output;
+}
 
-  return 'module.exports = ' + JSON.stringify(converter.convert(content));
+module.exports = function(content) {
+  var output = createReactComponent(content) + ';';
+  return 'module.exports = ' + output;
 };
