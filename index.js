@@ -17,11 +17,17 @@
 var HTMLtoJSX = require('htmltojsx');
 
 function createReactComponent(content) {
+
+  this.cacheable && this.cacheable();
+
   var converter = new HTMLtoJSX({
     createClass: false
   });
 
-  return converter.convert(content);
+  var output = converter.convert(content);
+  this.value = output;
+
+  return output;
 }
 
 module.exports = function (content) {
